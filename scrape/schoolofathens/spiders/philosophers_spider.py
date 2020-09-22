@@ -22,19 +22,19 @@ month_nr = {'january': '01', 'february': '02', 'march': '03', 'april': '04', 'ma
 pageid_map = {}
 
 class PhilSpider(scrapy.Spider):
-    name = "philosophers"
+    name = "economists"
     allowed_domains = ["en.wikipedia.org"]
     download_delay = 1.0
-    start_urls = ['https://en.wikipedia.org/wiki/List_of_philosophers_(A-C)', 'https://en.wikipedia.org/wiki/List_of_philosophers_(D-H)', 'https://en.wikipedia.org/wiki/List_of_philosophers_(I-Q)', 'https://en.wikipedia.org/wiki/List_of_philosophers_(R-Z)']
+    start_urls = ['wikipedia.org/wiki/List_of_economists']
 
     def parse(self, response):
-       for philosopher_link in response.css('div[class=mw-parser-output] > ul li a[href^="/wiki/"]::attr(href)').extract():
-           url = response.urljoin(philosopher_link)
-           req = scrapy.Request(url, callback=self.parse_philosopher)
+       for economist_link in response.css('div[class=mw-parser-output] > ul li a[href^="/wiki/"]::attr(href)').extract():
+           url = response.urljoin(economist_link)
+           req = scrapy.Request(url, callback=self.parse_economist)
            yield req
 
 
-    def parse_philosopher(self, response):
+    def parse_economist(self, response):
         data = {}
         data['url'] = response.url
         data['img'] = self.get_img(response)
@@ -43,7 +43,8 @@ class PhilSpider(scrapy.Spider):
         data['born'] = self.parse_born(response)
         data['school'] = self.parse_school(response)
         data['influences'] = self.parse_influences(response)
-        data['influenced'] = self.parse_influenced(response)
+        data['doctoral advisor'] = self.parse_advisor(response)
+        data['doctoral student'] = self.parse_students(response)
 
         yield data
 
@@ -162,18 +163,31 @@ class PhilSpider(scrapy.Spider):
         return influences_data
 
     
-    def parse_influenced(self, response):
+    def parse_advisor(self, response):
         influenced_data = []
-        links_pattern_1 = response.xpath('//table/tbody/tr//div[@class="NavHead" and contains(text(),"Influenced")]/following-sibling::ul//li/a')
-        links_pattern_2 = response.xpath('//table/tbody/tr//div[@class="NavHead" and contains(text(),"Influenced")]/following-sibling::ul//li//div/a')
+        links_pattern_1 = response.xpath('//table/tbody/tr//div[@class="NavHead" and contains(text(),"Doctoral advisor")]/following-sibling::ul//li/a')
+        links_pattern_2 = response.xpath('//table/tbody/tr//div[@class="NavHead" and contains(text(),"Doctoral advisor")]/following-sibling::ul//li//div/a')
         links = links_pattern_1 + links_pattern_2
         for link in links:
-            influenced_entry = {}
-            influenced_entry['name'] = link.xpath('text()').get()
-            influenced_entry['url'] = link.attrib['href']
-            influenced_entry['pageid'] = self.resolve_pageid(response.urljoin(link.attrib['href']))
-            influenced_data.append(influenced_entry)
-        return influenced_data
+            advisor_entry = {}
+            advisor_entry['name'] = link.xpath('text()').get()
+            advisor_entry['url'] = link.attrib['href']
+            advisor_entry['pageid'] = self.resolve_pageid(response.urljoin(link.attrib['href']))
+            advisor_data.append(advisor_entry)
+        return advisor_data
+    
+    def parse_student(self, response):
+        influenced_data = []
+        links_pattern_1 = response.xpath('//table/tbody/tr//div[@class="NavHead" and contains(text(),"Doctoral students")]/following-sibling::ul//li/a')
+        links_pattern_2 = response.xpath('//table/tbody/tr//div[@class="NavHead" and contains(text(),"Doctoral students")]/following-sibling::ul//li//div/a')
+        links = links_pattern_1 + links_pattern_2
+        for link in links:
+            student_entry = {}
+            student_entry['name'] = link.xpath('text()').get()
+            student_entry['url'] = link.attrib['href']
+            student_entry['pageid'] = self.resolve_pageid(response.urljoin(link.attrib['href']))
+            student_data.append(student_entry)
+        return student_data
 
 
     def first_or_none(self, list):
